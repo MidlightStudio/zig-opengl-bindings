@@ -378,11 +378,11 @@ const GLSpec = struct {
                 try writer.print("{s}", .{zigTypeDefs});
                 try writer.print("\n\n", .{});
 
-                var enums = std.ArrayList([]const u8).init(self.allocator);
-                defer enums.deinit();
+                var enumNames = std.StringHashMap(void).init(self.allocator);
+                defer enumNames.deinit();
 
-                var commands = std.ArrayList([]const u8).init(self.allocator);
-                defer commands.deinit();
+                var commandNames = std.StringHashMap(void).init(self.allocator);
+                defer commandNames.deinit();
 
                 // try commands.append("glGetShaderSource");
 
@@ -396,23 +396,30 @@ const GLSpec = struct {
                     }
 
                     for (featureSet.enums) |enumSet| {
-                        try enums.appendSlice(enumSet);
+                        for (enumSet) |enumName| {
+                            try enumNames.put(enumName, {});
+                        }
                     }
 
                     for (featureSet.commands) |commandSet| {
-                        try commands.appendSlice(commandSet);
+                        for (commandSet) |commandName| {
+                            try commandNames.put(commandName, {});
+                        }
                     }
                 }
 
-                for (enums.items) |enumName| {
-                    const @"enum" = enumQuickSet.get(enumName) orelse unreachable;
+                var enumIter = enumNames.keyIterator();
+                var commandIter = commandNames.keyIterator();
+
+                while (enumIter.next()) |enumName| {
+                    const @"enum" = enumQuickSet.get(enumName.*) orelse unreachable;
                     try writer.print("{}\n", .{@"enum"});
                 }
 
                 try writer.print("\n", .{});
 
-                for (commands.items) |commandName| {
-                    const command = commandQuickSet.get(commandName) orelse unreachable;
+                while (commandIter.next()) |commandName| {
+                    const command = commandQuickSet.get(commandName.*) orelse unreachable;
                     try writer.print("{}\n", .{Command.Formatter{ .allocator = self.allocator, .command = command, .static = self.static }});
                 }
 
@@ -446,9 +453,10 @@ const GLSpec = struct {
                     try writer.print(
                         \\pub fn init() void {{
                     , .{});
-                    for (commands.items) |commandName| {
+                    var commandIter2 = commandNames.keyIterator();
+                    while (commandIter2.next()) |commandName| {
                         try writer.print("\n", .{});
-                        const command = commandQuickSet.get(commandName) orelse unreachable;
+                        const command = commandQuickSet.get(commandName.*) orelse unreachable;
                         try writer.print(
                             \\    {} = @ptrCast(loadFn("{s}") orelse @panic("Cannot find proc \"{s}\""));
                         , .{ formatSymbol(command.prototype.name), command.prototype.name, command.prototype.name });
@@ -496,10 +504,13 @@ pub fn main() !void {
     };
 
     var isWasm = false;
+    var time = false;
     while (args.next()) |arg| {
         if (std.mem.eql(u8, arg, "--static")) isWasm = true;
+        if (std.mem.eql(u8, arg, "--time")) time = true;
     }
 
+    const us1 = std.time.microTimestamp();
     var document = try xml.parseXmlFull(gpa.allocator(), @embedFile("gl.xml"));
     defer document.deinit();
 
@@ -538,4 +549,8 @@ pub fn main() !void {
         \\//
     , .{ "2024", api, version, isWasm });
     try outFile.writer().print("\n{}", .{formatter});
+    const us2 = std.time.microTimestamp();
+    const ms: usize = @intCast(@divFloor(us2 - us1, 1000));
+
+    if (time) try std.io.getStdOut().writer().print("took {}ms", .{ms});
 }
