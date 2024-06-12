@@ -2,15 +2,15 @@
     .name = "zig-opengl-bindings",
     .version = "0.0.0",
     .dependencies = .{
-        .@"dishwasher" = .{
+        .dishwasher = .{
             .url = "https://github.com/edqx/dishwasher/archive/refs/tags/1.0.4.zip",
-            .hash = "12209f29d4963ec005990c46310ce63d883b2c02d1e79906ec60ec1b4f40466d34a0"
-        }
+            .hash = "12209f29d4963ec005990c46310ce63d883b2c02d1e79906ec60ec1b4f40466d34a0",
+        },
     },
     .paths = .{
         "build.zig",
         "build.zig.zon",
         "src",
-        "OpenGL-Registry/xml/gl.xml"
+        "OpenGL-Registry/xml/gl.xml",
     },
 }

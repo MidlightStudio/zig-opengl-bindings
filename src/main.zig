@@ -42,48 +42,46 @@ const GLSpec = struct {
         .{ "const void *const*", "[*c]const *const anyopaque" },
     });
 
-    pub const renameSymbols = std.StaticStringMap(void).initComptime(.{
-        .{ "packed", {} }
-    });
+    pub const renameSymbols = std.StaticStringMap(void).initComptime(.{.{ "packed", {} }});
 
     const zigTypeDefs =
-    \\pub const GLenum = u32;
-    \\pub const GLhandleARB = if (@import("builtin").os.tag == .macos) [*c]u0 else c_uint;
-    \\pub const GLeglClientBufferEXT = [*c]u0;
-    \\pub const GLeglImageOES = [*c]u0;
-    \\pub const GLsync = [*c]u0;
-    \\pub const _cl_context = opaque {};
-    \\pub const _cl_event = opaque {};
-    \\pub const GLDEBUGPROC = [*c]const fn (source: GLenum, _type: GLenum, id: u32, severity: GLenum, length: i32, message: [*:0]const u8, userParam: ?*anyopaque) callconv(.C) void;
-    \\pub const GLDEBUGPROCARB = [*c]const fn (source: GLenum, _type: GLenum, id: u32, severity: GLenum, length: i32, message: [*:0]const u8, userParam: ?*anyopaque) callconv(.C) void;
-    \\pub const GLDEBUGPROCKHR = [*c]const fn (source: GLenum, _type: GLenum, id: u32, severity: GLenum, length: i32, message: [*:0]const u8, userParam: ?*anyopaque) callconv(.C) void;
-    \\pub const GLDEBUGPROCAMD = [*c]const fn (id: u32, category: GLenum, severity: GLenum, length: i32, message: [*:0]const u8, userParam: ?*anyopaque) callconv(.C) void;
-    \\pub const GLhalfNV = u16;
-    \\pub const GLvdpauSurfaceNV = usize;
-    \\pub const GLVULKANPROCNV = [*c]const fn () callconv(.C) void;
+        \\pub const GLenum = u32;
+        \\pub const GLhandleARB = if (@import("builtin").os.tag == .macos) [*c]u0 else c_uint;
+        \\pub const GLeglClientBufferEXT = [*c]u0;
+        \\pub const GLeglImageOES = [*c]u0;
+        \\pub const GLsync = [*c]u0;
+        \\pub const _cl_context = opaque {};
+        \\pub const _cl_event = opaque {};
+        \\pub const GLDEBUGPROC = [*c]const fn (source: GLenum, _type: GLenum, id: u32, severity: GLenum, length: i32, message: [*:0]const u8, userParam: ?*anyopaque) callconv(.C) void;
+        \\pub const GLDEBUGPROCARB = [*c]const fn (source: GLenum, _type: GLenum, id: u32, severity: GLenum, length: i32, message: [*:0]const u8, userParam: ?*anyopaque) callconv(.C) void;
+        \\pub const GLDEBUGPROCKHR = [*c]const fn (source: GLenum, _type: GLenum, id: u32, severity: GLenum, length: i32, message: [*:0]const u8, userParam: ?*anyopaque) callconv(.C) void;
+        \\pub const GLDEBUGPROCAMD = [*c]const fn (id: u32, category: GLenum, severity: GLenum, length: i32, message: [*:0]const u8, userParam: ?*anyopaque) callconv(.C) void;
+        \\pub const GLhalfNV = u16;
+        \\pub const GLvdpauSurfaceNV = usize;
+        \\pub const GLVULKANPROCNV = [*c]const fn () callconv(.C) void;
     ;
-    
+
     fn formatSymbolImpl(symbolName: []const u8, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
         if (std.mem.startsWith(u8, symbolName, "gl")) {
             try writer.writeByte(symbolName[2] + ('a' - 'A'));
-            try writer.print("{}", .{ formatSymbol(symbolName[3..]) });
+            try writer.print("{}", .{formatSymbol(symbolName[3..])});
             return;
         }
         if (std.mem.startsWith(u8, symbolName, "GL_")) {
-            try writer.print("{}", .{ formatSymbol(symbolName[3..]) });
+            try writer.print("{}", .{formatSymbol(symbolName[3..])});
             return;
         }
         switch (symbolName[0]) {
             '0'...'9' => {
-                try writer.print("@\"{s}\"", .{ symbolName });
+                try writer.print("@\"{s}\"", .{symbolName});
             },
             else => {
                 if (renameSymbols.get(symbolName)) |_| {
-                    try writer.print("@\"{s}\"", .{ symbolName });
+                    try writer.print("@\"{s}\"", .{symbolName});
                     return;
                 }
-                try writer.print("{s}", .{ symbolName });
-            }
+                try writer.print("{s}", .{symbolName});
+            },
         }
     }
 
@@ -98,42 +96,37 @@ const GLSpec = struct {
         pub fn format(self: TypeFormatter, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
             var trimmed = std.mem.trim(u8, self.typeName, &std.ascii.whitespace);
             if (std.mem.endsWith(u8, trimmed, "const*")) {
-                try writer.print("[*c]const {}", .{ TypeFormatter{ .typeName = trimmed[0..trimmed.len - 6], .renameVoid = true } });
+                try writer.print("[*c]const {}", .{TypeFormatter{ .typeName = trimmed[0 .. trimmed.len - 6], .renameVoid = true }});
                 return;
             }
             if (std.mem.endsWith(u8, trimmed, "*")) {
                 if (std.mem.startsWith(u8, trimmed, "const")) {
-                    try writer.print("[*c]const {}", .{ TypeFormatter{ .typeName = trimmed[5..trimmed.len - 1], .renameVoid = true } });
+                    try writer.print("[*c]const {}", .{TypeFormatter{ .typeName = trimmed[5 .. trimmed.len - 1], .renameVoid = true }});
                     return;
                 }
-                try writer.print("[*c]{}", .{ TypeFormatter{ .typeName = trimmed[0..trimmed.len - 1], .renameVoid = true } });
+                try writer.print("[*c]{}", .{TypeFormatter{ .typeName = trimmed[0 .. trimmed.len - 1], .renameVoid = true }});
                 return;
             }
             if (std.mem.startsWith(u8, trimmed, "struct ")) {
-                try writer.print("{}", .{ TypeFormatter{ .typeName = trimmed[7..] } });
+                try writer.print("{}", .{TypeFormatter{ .typeName = trimmed[7..] }});
                 return;
             }
             if (renameTypes.get(trimmed)) |renamed| {
-                try writer.print("{}", .{ TypeFormatter{ .typeName = renamed } });
+                try writer.print("{}", .{TypeFormatter{ .typeName = renamed }});
                 return;
             }
             if (self.renameVoid and std.mem.eql(u8, trimmed, "void")) {
-                try writer.print("u0", .{ });
+                try writer.print("u0", .{});
                 return;
             }
-            try writer.print("{s}", .{ trimmed });
+            try writer.print("{s}", .{trimmed});
         }
     };
 
     pub const Type = struct {
-        pub const XmlShape = .{
-            .name = xml.disjunction(.{
-                xml.singleElement("name", xml.elementContent(.trim)),
-                xml.attribute("name")
-            })
-        };
+        pub const XmlShape = .{ .name = xml.disjunction(.{ xml.singleElement("name", xml.elementContent(.trim)), xml.attribute("name") }) };
 
-        name: []const u8
+        name: []const u8,
     };
 
     pub const Kind = struct {
@@ -147,10 +140,7 @@ const GLSpec = struct {
     };
 
     pub const Group = struct {
-        pub const XmlShape = .{
-            .name = xml.attribute("name"),
-            .items = xml.manyElements("enum", Enum)
-        };
+        pub const XmlShape = .{ .name = xml.attribute("name"), .items = xml.manyElements("enum", Enum) };
 
         name: []const u8,
         items: []Enum,
@@ -175,12 +165,7 @@ const GLSpec = struct {
     };
 
     pub const EnumSet = struct {
-        pub const XmlShape = .{
-            .namespace = xml.attribute("namespace"),
-            .maybeGroup = xml.maybe(xml.attribute("group")),
-            .comment = xml.maybe(xml.attribute("comment")),
-            .enums = xml.manyElements("enum", Enum)
-        };
+        pub const XmlShape = .{ .namespace = xml.attribute("namespace"), .maybeGroup = xml.maybe(xml.attribute("group")), .comment = xml.maybe(xml.attribute("comment")), .enums = xml.manyElements("enum", Enum) };
 
         namespace: []const u8,
         maybeGroup: ?[]const u8,
@@ -220,7 +205,7 @@ const GLSpec = struct {
                     xml.singleElement("ptype", xml.elementContent(.trim)),
                 }),
                 xml.singleElement("ptype", xml.elementContent(.trim)),
-                xml.elementContent(.trim) // used for const void* parameters
+                xml.elementContent(.trim), // used for const void* parameters
             }),
             .name = xml.singleElement("name", xml.elementContent(.trim)),
         };
@@ -243,24 +228,24 @@ const GLSpec = struct {
             parameter: Parameter,
 
             pub fn format(self: Formatter, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-                try writer.print("{}: ", .{ formatSymbol(self.parameter.name) });
+                try writer.print("{}: ", .{formatSymbol(self.parameter.name)});
                 switch (self.parameter.pType) {
                     .fixed => |parts| {
                         const typeName = try std.fmt.allocPrint(self.allocator, "{s} {s} {s}", .{ parts[0], parts[1], parts[2] });
                         defer self.allocator.free(typeName);
-                        try writer.print("{}", .{ TypeFormatter{ .typeName = typeName } });
+                        try writer.print("{}", .{TypeFormatter{ .typeName = typeName }});
                     },
                     inline .prefixed, .postfixed => |parts| {
                         const typeName = try std.fmt.allocPrint(self.allocator, "{s} {s}", .{ parts[0], parts[1] });
                         defer self.allocator.free(typeName);
-                        try writer.print("{}", .{ TypeFormatter{ .typeName = typeName } });
+                        try writer.print("{}", .{TypeFormatter{ .typeName = typeName }});
                     },
                     .pType => |pType| {
-                        try writer.print("{}", .{ TypeFormatter{ .typeName = pType } });
+                        try writer.print("{}", .{TypeFormatter{ .typeName = pType }});
                     },
                     .content => |content| {
-                        try writer.print("{}", .{   TypeFormatter{ .typeName = content } });
-                    }
+                        try writer.print("{}", .{TypeFormatter{ .typeName = content }});
+                    },
                 }
             }
         };
@@ -268,7 +253,7 @@ const GLSpec = struct {
 
     pub const Command = struct {
         pub const XmlShape = .{
-        .prototype = xml.singleElement("proto", Prototype),
+            .prototype = xml.singleElement("proto", Prototype),
             .parameters = xml.manyElements("param", Parameter),
         };
 
@@ -282,17 +267,17 @@ const GLSpec = struct {
 
             pub fn format(self: Formatter, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
                 if (self.static) {
-                    try writer.print("pub extern fn {}(", .{ formatSymbol(self.command.prototype.name) });
+                    try writer.print("pub extern fn {}(", .{formatSymbol(self.command.prototype.name)});
                 } else {
-                    try writer.print("pub var {}: *const fn(", .{ formatSymbol(self.command.prototype.name) });
+                    try writer.print("pub var {}: *const fn(", .{formatSymbol(self.command.prototype.name)});
                 }
                 for (0.., self.command.parameters) |i, param| {
                     if (i != 0) {
                         try writer.print(", ", .{});
                     }
-                    try writer.print("{}", .{ Parameter.Formatter{ .allocator = self.allocator, .parameter = param } });
+                    try writer.print("{}", .{Parameter.Formatter{ .allocator = self.allocator, .parameter = param }});
                 }
-                try writer.print(") callconv(.C) {}", .{ TypeFormatter{ .typeName = self.command.prototype.retType } });
+                try writer.print(") callconv(.C) {}", .{TypeFormatter{ .typeName = self.command.prototype.retType }});
                 if (self.static) {
                     try writer.print(";", .{});
                 } else {
@@ -310,7 +295,7 @@ const GLSpec = struct {
 
         namespace: []const u8,
         commands: []Command,
-        
+
         pub const Formatter = struct {
             allocator: std.mem.Allocator,
             commandSet: CommandSet,
@@ -320,7 +305,7 @@ const GLSpec = struct {
                     if (i != 0) {
                         try writer.print("\n", .{});
                     }
-                    try writer.print("{}", .{ Command.Formatter{ .allocator = self.allocator, .command = command } });
+                    try writer.print("{}", .{Command.Formatter{ .allocator = self.allocator, .command = command }});
                 }
             }
         };
@@ -342,7 +327,7 @@ const GLSpec = struct {
         commands: [][][]const u8,
     };
 
-    pub const RegistryFormatError = error { BadFormat, UnknownVersion };
+    pub const RegistryFormatError = error{ BadFormat, UnknownVersion };
 
     pub const Registry = struct {
         pub const XmlShape = .{
@@ -390,12 +375,12 @@ const GLSpec = struct {
                     }
                 }
 
-                try writer.print("{s}", .{ zigTypeDefs });
+                try writer.print("{s}", .{zigTypeDefs});
                 try writer.print("\n\n", .{});
 
                 var enums = std.ArrayList([]const u8).init(self.allocator);
                 defer enums.deinit();
-                
+
                 var commands = std.ArrayList([]const u8).init(self.allocator);
                 defer commands.deinit();
 
@@ -407,10 +392,9 @@ const GLSpec = struct {
                         const number = featureSet.maybeNumber orelse continue;
                         if (try std.fmt.parseFloat(f32, number) > try std.fmt.parseFloat(f32, maxNumber)) continue;
                     } else {
-                        if (!std.mem.eql(u8, featureSet.api, maximumFeature.api)
-                            or !std.mem.eql(u8, featureSet.version, maximumFeature.version)) continue;
+                        if (!std.mem.eql(u8, featureSet.api, maximumFeature.api) or !std.mem.eql(u8, featureSet.version, maximumFeature.version)) continue;
                     }
-                    
+
                     for (featureSet.enums) |enumSet| {
                         try enums.appendSlice(enumSet);
                     }
@@ -419,73 +403,71 @@ const GLSpec = struct {
                         try commands.appendSlice(commandSet);
                     }
                 }
-                
+
                 for (enums.items) |enumName| {
                     const @"enum" = enumQuickSet.get(enumName) orelse unreachable;
-                    try writer.print("{}\n", .{ @"enum" });
+                    try writer.print("{}\n", .{@"enum"});
                 }
 
                 try writer.print("\n", .{});
 
                 for (commands.items) |commandName| {
                     const command = commandQuickSet.get(commandName) orelse unreachable;
-                    try writer.print("{}\n", .{ Command.Formatter{ .allocator = self.allocator, .command = command, .static = self.static } });
+                    try writer.print("{}\n", .{Command.Formatter{ .allocator = self.allocator, .command = command, .static = self.static }});
                 }
 
                 if (!self.static) {
                     try writer.print("\n", .{});
                     try writer.print(
-\\const loadFn = (switch (@import("builtin").os.tag) {{
-\\    .windows => struct {{
-\\        pub const WINAPI = @import("std").os.windows.WINAPI;
-\\
-\\        pub extern "opengl32" fn wglGetProcAddress(
-\\            param0: ?[*:0]const u8,
-\\        ) callconv(WINAPI) ?*const fn () callconv(WINAPI) isize;
-\\
-\\        pub extern "kernel32" fn GetModuleHandleA(moduleName: ?[*:0]const u8) callconv(WINAPI) ?*anyopaque;
-\\        pub extern "kernel32" fn GetProcAddress(handle: ?*anyopaque, moduleName: ?[*:0]const u8) callconv(WINAPI) ?*anyopaque;
-\\
-\\        pub fn load(procName: [*:0]const u8) ?*anyopaque {{
-\\            if (wglGetProcAddress(@ptrCast(procName))) |ptr| {{
-\\                return @ptrCast(@constCast(ptr));
-\\            }}
-\\            @import("std").log.info("loading: {{s}}", .{{ procName }});
-\\            const libgl = GetModuleHandleA("opengl32");
-\\            return GetProcAddress(libgl, @ptrCast(procName));
-\\        }}
-\\    }},
-\\    else => |tag| @compileError("Unsupported OS: " ++ @tagName(tag))
-\\}}).load;
+                        \\const loadFn = (switch (@import("builtin").os.tag) {{
+                        \\    .windows => struct {{
+                        \\        pub const WINAPI = @import("std").os.windows.WINAPI;
+                        \\
+                        \\        pub extern "opengl32" fn wglGetProcAddress(
+                        \\            param0: ?[*:0]const u8,
+                        \\        ) callconv(WINAPI) ?*const fn () callconv(WINAPI) isize;
+                        \\
+                        \\        pub extern "kernel32" fn GetModuleHandleA(moduleName: ?[*:0]const u8) callconv(WINAPI) ?*anyopaque;
+                        \\        pub extern "kernel32" fn GetProcAddress(handle: ?*anyopaque, moduleName: ?[*:0]const u8) callconv(WINAPI) ?*anyopaque;
+                        \\
+                        \\        pub fn load(procName: [*:0]const u8) ?*anyopaque {{
+                        \\            if (wglGetProcAddress(@ptrCast(procName))) |ptr| {{
+                        \\                return @ptrCast(@constCast(ptr));
+                        \\            }}
+                        \\            @import("std").log.info("loading: {{s}}", .{{ procName }});
+                        \\            const libgl = GetModuleHandleA("opengl32");
+                        \\            return GetProcAddress(libgl, @ptrCast(procName));
+                        \\        }}
+                        \\    }},
+                        \\    else => |tag| @compileError("Unsupported OS: " ++ @tagName(tag))
+                        \\}}).load;
                     , .{});
                     try writer.print("\n\n", .{});
                     try writer.print(
-\\pub fn init() void {{
+                        \\pub fn init() void {{
                     , .{});
                     for (commands.items) |commandName| {
                         try writer.print("\n", .{});
                         const command = commandQuickSet.get(commandName) orelse unreachable;
                         try writer.print(
-\\    {} = @ptrCast(loadFn("{s}") orelse @panic("Cannot find proc \"{s}\""));
+                            \\    {} = @ptrCast(loadFn("{s}") orelse @panic("Cannot find proc \"{s}\""));
                         , .{ formatSymbol(command.prototype.name), command.prototype.name, command.prototype.name });
                     }
                     try writer.print("\n", .{});
                     try writer.print(
-\\}}
+                        \\}}
                     , .{});
                 }
             }
         };
     };
 
-    pub const XmlShape = .{
-        .registry = xml.singleElement("registry", Registry)
-    };
+    pub const XmlShape = .{ .registry = xml.singleElement("registry", Registry) };
 
     registry: Registry,
 
     pub fn format(self: GLSpec, comptime fmt: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-        try writer.print("{" ++ fmt ++ "}", .{ self.registry });
+        try writer.print("{" ++ fmt ++ "}", .{self.registry});
     }
 };
 
@@ -525,41 +507,35 @@ pub fn main() !void {
     const spec = try document.doc.createValue(GLSpec, arena.allocator());
     defer arena.deinit();
 
-    const outFile = try std.fs.cwd().createFile(outputPath, .{ });
+    const outFile = try std.fs.cwd().createFile(outputPath, .{});
     defer outFile.close();
 
-    const formatter = GLSpec.Registry.Formatter{
-        .allocator = gpa.allocator(),
-        .registry = spec.registry,
-        .api = api,
-        .version = version,
-        .static = isWasm
-    };
+    const formatter = GLSpec.Registry.Formatter{ .allocator = gpa.allocator(), .registry = spec.registry, .api = api, .version = version, .static = isWasm };
     try outFile.writer().print(
-\\//
-\\// Copyright {s} MIDLIGHT STUDIOS
-\\// Permission is hereby granted, free of charge, to any person obtaining a copy
-\\// of this software and associated documentation files (the “Software”), to deal
-\\// in the Software without restriction, including without limitation the rights to
-\\// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-\\// of the Software, and to permit persons to whom the Software is furnished to do so,
-\\// subject to the following conditions:
-\\//
-\\// The above copyright notice and this permission notice shall be included in all
-\\// copies or substantial portions of the Software.
-\\//
-\\// THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
-\\// INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
-\\// PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-\\// HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-\\// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-\\// SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-\\//
-\\// GENERATED WITH https://github.com/MidlightStudio/zig-opengl-bindings
-\\//     API: {s}
-\\//     Version: {s}
-\\//     Static: {}
-\\//
+        \\//
+        \\// Copyright {s} MIDLIGHT STUDIOS
+        \\// Permission is hereby granted, free of charge, to any person obtaining a copy
+        \\// of this software and associated documentation files (the “Software”), to deal
+        \\// in the Software without restriction, including without limitation the rights to
+        \\// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+        \\// of the Software, and to permit persons to whom the Software is furnished to do so,
+        \\// subject to the following conditions:
+        \\//
+        \\// The above copyright notice and this permission notice shall be included in all
+        \\// copies or substantial portions of the Software.
+        \\//
+        \\// THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+        \\// INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+        \\// PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+        \\// HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+        \\// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+        \\// SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+        \\//
+        \\// GENERATED WITH https://github.com/MidlightStudio/zig-opengl-bindings
+        \\//     API: {s}
+        \\//     Version: {s}
+        \\//     Static: {}
+        \\//
     , .{ "2024", api, version, isWasm });
-    try outFile.writer().print("\n{}", .{ formatter });
+    try outFile.writer().print("\n{}", .{formatter});
 }
