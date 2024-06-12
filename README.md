@@ -22,13 +22,6 @@ executable.root_module.addImport("opengl", opengl);
 ```
 
 ## Usage: Standalone
-### Cloning
-Ensure to also clone the [OpenGL-Registry](https://github.com/KhronosGroup/OpenGL-Registry/) submodule when cloning this
-repository. Use:
-```sh
-git clone https://github.com/MidlightStudio/zig-opengl-bindings.git --recurse-submodules
-```
-
 ### Building
 Building the standalone binary is as simple as:
 ```sh

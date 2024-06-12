@@ -6,6 +6,10 @@
             .url = "https://github.com/edqx/dishwasher/archive/refs/tags/1.0.4.zip",
             .hash = "12209f29d4963ec005990c46310ce63d883b2c02d1e79906ec60ec1b4f40466d34a0",
         },
+        .@"OpenGL-Registry" = .{
+            .url = "https://github.com/KhronosGroup/OpenGL-Registry/archive/5466009a38991f5ea5c2009105bd83f19fe49979.zip",
+            .hash = "1220c3c44306989ea798da3441387891a399f960e32eeedbd535e34f838d1cc903ca",
+        },
     },
     .paths = .{
         "build.zig",

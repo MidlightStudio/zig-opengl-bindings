@@ -5,6 +5,7 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     const dishwasher = b.dependency("dishwasher", .{});
+    const openglRegistry = b.dependency("OpenGL-Registry", .{});
 
     const exe = b.addExecutable(.{
         .name = "zig-opengl-bindings",
@@ -13,7 +14,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    exe.root_module.addImport("gl.xml", b.addModule("gl-xml", .{ .root_source_file = b.path("OpenGL-Registry/xml/gl.xml") }));
+    exe.root_module.addImport("gl.xml", b.addModule("gl-xml", .{ .root_source_file = openglRegistry.path("xml/gl.xml") }));
     exe.root_module.addImport("dishwasher", dishwasher.module("dishwasher"));
 
     b.installArtifact(exe);
