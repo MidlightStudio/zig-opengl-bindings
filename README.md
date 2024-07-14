@@ -15,7 +15,7 @@ const openglBindings = @import("zig-opengl-bindings");
 const opengl = openglBindings.addBindingsModule(b, .{
     .api = "gles2",
     .version = "GL_ES_VERSION_3_0",
-    .static = false
+    .static = false,
 });
 ...
 executable.root_module.addImport("opengl", opengl);

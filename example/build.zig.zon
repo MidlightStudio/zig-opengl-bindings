@@ -1,0 +1,16 @@
+.{
+    .name = "example",
+    .version = "0.0.0",
+    .dependencies = .{
+        .@"zig-opengl-bindings" = .{ .path = ".." },
+        .win32 = .{
+            .url = "https://github.com/marlersoft/zigwin32/archive/cb69e87ceaf678500b6a8772c3c8ffcb87ecaa58.zip",
+            .hash = "12208465354ed9d0caff19f2cd87ea9f629ca02e7230a360202c19b7918231aec3cb",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}

@@ -441,7 +441,6 @@ const GLSpec = struct {
                         \\            if (wglGetProcAddress(@ptrCast(procName))) |ptr| {{
                         \\                return @ptrCast(@constCast(ptr));
                         \\            }}
-                        \\            @import("std").log.info("loading: {{s}}", .{{ procName }});
                         \\            const libgl = GetModuleHandleA("opengl32");
                         \\            return GetProcAddress(libgl, @ptrCast(procName));
                         \\        }}
