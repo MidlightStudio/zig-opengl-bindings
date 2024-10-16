@@ -3,8 +3,8 @@
     .version = "0.0.0",
     .dependencies = .{
         .dishwasher = .{
-            .url = "https://github.com/edqx/dishwasher/archive/refs/tags/1.0.5.zip",
-            .hash = "12209904f622e4ffb9aa8d6fef6bc6e2eeb6536e057b6c8b8c65a6287dbdd9ec536a",
+            .url = "https://github.com/edqx/dishwasher/archive/refs/tags/1.0.6.zip",
+            .hash = "12205b393762918a90452d6cc58f457a9d9136a9dd1fc63ba353753b9b19fdd9cd70",
         },
         .@"OpenGL-Registry" = .{
             .url = "https://github.com/KhronosGroup/OpenGL-Registry/archive/5466009a38991f5ea5c2009105bd83f19fe49979.zip",
