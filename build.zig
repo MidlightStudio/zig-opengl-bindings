@@ -41,9 +41,8 @@ pub fn addBindingsModule(b: *std.Build, options: BindingsOptions) *std.Build.Mod
     var zigOpenGLBindings = b.dependency("zig-opengl-bindings", .{ .optimize = @as([]const u8, "ReleaseFast") });
     const exe = zigOpenGLBindings.artifact("zig-opengl-bindings");
 
-    const buildGLBindingsCmd = std.Build.Step.Run.create(b, b.fmt("generate opengl bindings", .{}));
+    const buildGLBindingsCmd = b.addRunArtifact(exe);
 
-    buildGLBindingsCmd.addFileArg(exe.getEmittedBin());
     buildGLBindingsCmd.addArg(options.api);
     buildGLBindingsCmd.addArg(options.version);
 
