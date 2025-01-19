@@ -124,15 +124,26 @@ const GLSpec = struct {
     };
 
     pub const Type = struct {
-        pub const XmlShape = .{ .name = xml.disjunction(.{ xml.singleElement("name", xml.elementContent(.trim)), xml.attribute("name") }) };
+        pub const xml_shape = .{
+            .name = .{
+                .one_of,
+                .{ .element, "name", .content_trimmed },
+                .{ .attribute, "name" },
+            },
+        };
 
-        name: []const u8,
+        pub const SomeName = union(enum) {
+            elem_name: []const u8,
+            attr_name: []const u8,
+        };
+
+        name: SomeName,
     };
 
     pub const Kind = struct {
-        pub const XmlShape = .{
-            .name = xml.attribute("name"),
-            .desc = xml.attribute("desc"),
+        pub const xml_shape = .{
+            .name = .{ .attribute, "name" },
+            .desc = .{ .attribute, "desc" },
         };
 
         name: []const u8,
@@ -140,18 +151,21 @@ const GLSpec = struct {
     };
 
     pub const Group = struct {
-        pub const XmlShape = .{ .name = xml.attribute("name"), .items = xml.manyElements("enum", Enum) };
+        pub const xml_shape = .{
+            .name = .{ .attribute, "name" },
+            .items = .{ .elements, "enum", Enum },
+        };
 
         name: []const u8,
         items: []Enum,
     };
 
     pub const Enum = struct {
-        pub const XmlShape = .{
-            .name = xml.attribute("name"),
-            .value = xml.attribute("value"),
-            .maybeComment = xml.maybe(xml.attribute("comment")),
-            .maybeGroup = xml.maybe(xml.attribute("group")),
+        pub const xml_shape = .{
+            .name = .{ .attribute, "name" },
+            .value = .{ .attribute, "value" },
+            .maybeComment = .{ .maybe, .{ .attribute, "comment" } },
+            .maybeGroup = .{ .maybe, .{ .attribute, "group" } },
         };
 
         name: []const u8,
@@ -165,7 +179,12 @@ const GLSpec = struct {
     };
 
     pub const EnumSet = struct {
-        pub const XmlShape = .{ .namespace = xml.attribute("namespace"), .maybeGroup = xml.maybe(xml.attribute("group")), .comment = xml.maybe(xml.attribute("comment")), .enums = xml.manyElements("enum", Enum) };
+        pub const xml_shape = .{
+            .namespace = .{ .attribute, "namespace" },
+            .maybeGroup = .{ .maybe, .{ .attribute, "group" } },
+            .comment = .{ .maybe, .{ .attribute, "comment" } },
+            .enums = .{ .elements, "enum", Enum },
+        };
 
         namespace: []const u8,
         maybeGroup: ?[]const u8,
@@ -174,40 +193,30 @@ const GLSpec = struct {
     };
 
     pub const Prototype = struct {
-        pub const XmlShape = .{
-            .retType = xml.disjunction(.{
-                xml.singleElement("ptype", xml.elementContent(.trim)),
-                xml.elementContent(.trim),
-            }),
-            .name = xml.singleElement("name", xml.elementContent(.trim)),
+        pub const xml_shape = .{
+            .retType = .{
+                .one_of,
+                .{ .element, "ptype", .content_trimmed },
+                .content_trimmed,
+            },
+            .name = .{ .element, "name", .content_trimmed },
         };
 
-        retType: []const u8,
+        pub const SomeRetType = union(enum) {
+            elem_type: []const u8,
+            content_type: []const u8,
+        };
+
+        retType: SomeRetType,
         name: []const u8,
     };
 
     pub const Parameter = struct {
-        pub const XmlShape = .{
-            .maybeGroup = xml.maybe(xml.attribute("group")),
-            .maybeKind = xml.maybe(xml.attribute("kind")),
-            .pType = xml.disjunction(.{
-                xml.pattern(.{
-                    xml.elementContent(.trim),
-                    xml.singleElement("ptype", xml.elementContent(.trim)),
-                    xml.elementContent(.trim),
-                }),
-                xml.pattern(.{
-                    xml.singleElement("ptype", xml.elementContent(.trim)),
-                    xml.elementContent(.trim),
-                }),
-                xml.pattern(.{
-                    xml.elementContent(.trim),
-                    xml.singleElement("ptype", xml.elementContent(.trim)),
-                }),
-                xml.singleElement("ptype", xml.elementContent(.trim)),
-                xml.elementContent(.trim), // used for const void* parameters
-            }),
-            .name = xml.singleElement("name", xml.elementContent(.trim)),
+        pub const xml_shape = .{
+            .maybeGroup = .{ .maybe, .{ .attribute, "group" } },
+            .maybeKind = .{ .maybe, .{ .attribute, "kind" } },
+            .pType = xml.parse.Tree,
+            .name = .{ .element, "name", .content_trimmed },
         };
 
         pub const PType = union(enum) {
@@ -220,7 +229,7 @@ const GLSpec = struct {
 
         maybeGroup: ?[]const u8,
         maybeKind: ?[]const u8,
-        pType: PType,
+        pType: xml.parse.Tree,
         name: []const u8,
 
         pub const Formatter = struct {
@@ -229,32 +238,38 @@ const GLSpec = struct {
 
             pub fn format(self: Formatter, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
                 try writer.print("{}: ", .{formatSymbol(self.parameter.name)});
-                switch (self.parameter.pType) {
-                    .fixed => |parts| {
-                        const typeName = try std.fmt.allocPrint(self.allocator, "{s} {s} {s}", .{ parts[0], parts[1], parts[2] });
-                        defer self.allocator.free(typeName);
-                        try writer.print("{}", .{TypeFormatter{ .typeName = typeName }});
-                    },
-                    inline .prefixed, .postfixed => |parts| {
-                        const typeName = try std.fmt.allocPrint(self.allocator, "{s} {s}", .{ parts[0], parts[1] });
-                        defer self.allocator.free(typeName);
-                        try writer.print("{}", .{TypeFormatter{ .typeName = typeName }});
-                    },
-                    .pType => |pType| {
-                        try writer.print("{}", .{TypeFormatter{ .typeName = pType }});
-                    },
-                    .content => |content| {
-                        try writer.print("{}", .{TypeFormatter{ .typeName = content }});
-                    },
+                var typeName = std.ArrayListUnmanaged(u8){};
+                defer typeName.deinit(self.allocator);
+
+                const writer2 = typeName.writer(self.allocator);
+
+                for (0.., self.parameter.pType.children) |i, child| {
+                    if (i != 0) try writer2.print(" ", .{});
+                    switch (child) {
+                        .text => |text_node| {
+                            const trimmed = std.mem.trim(u8, text_node.contents, &std.ascii.whitespace);
+                            try writer2.print("{s}", .{trimmed});
+                        },
+                        .elem => |elem_node| {
+                            if (std.mem.eql(u8, elem_node.tag_name, "ptype")) {
+                                const text = try elem_node.tree.?.concatTextTrimmedAlloc(self.allocator);
+                                defer self.allocator.free(text);
+
+                                try writer2.print("{s}", .{text});
+                            }
+                        },
+                        .comment => {},
+                    }
                 }
+                try writer.print("{}", .{TypeFormatter{ .typeName = typeName.items }});
             }
         };
     };
 
     pub const Command = struct {
-        pub const XmlShape = .{
-            .prototype = xml.singleElement("proto", Prototype),
-            .parameters = xml.manyElements("param", Parameter),
+        pub const xml_shape = .{
+            .prototype = .{ .element, "proto", Prototype },
+            .parameters = .{ .elements, "param", Parameter },
         };
 
         prototype: Prototype,
@@ -277,7 +292,9 @@ const GLSpec = struct {
                     }
                     try writer.print("{}", .{Parameter.Formatter{ .allocator = self.allocator, .parameter = param }});
                 }
-                try writer.print(") callconv(.C) {}", .{TypeFormatter{ .typeName = self.command.prototype.retType }});
+                try writer.print(") callconv(.C) {}", .{TypeFormatter{ .typeName = switch (self.command.prototype.retType) {
+                    inline else => |r| r,
+                } }});
                 if (self.static) {
                     try writer.print(";", .{});
                 } else {
@@ -288,9 +305,9 @@ const GLSpec = struct {
     };
 
     pub const CommandSet = struct {
-        pub const XmlShape = .{
-            .namespace = xml.attribute("namespace"),
-            .commands = xml.manyElements("command", Command),
+        pub const xml_shape = .{
+            .namespace = .{ .attribute, "namespace" },
+            .commands = .{ .elements, "command", Command },
         };
 
         namespace: []const u8,
@@ -312,12 +329,12 @@ const GLSpec = struct {
     };
 
     pub const FeatureSet = struct {
-        pub const XmlShape = .{
-            .api = xml.attribute("api"),
-            .version = xml.attribute("name"),
-            .maybeNumber = xml.maybe(xml.attribute("number")),
-            .enums = xml.manyElements("require", xml.manyElements("enum", xml.attribute("name"))),
-            .commands = xml.manyElements("require", xml.manyElements("command", xml.attribute("name"))),
+        pub const xml_shape = .{
+            .api = .{ .attribute, "api" },
+            .version = .{ .attribute, "name" },
+            .maybeNumber = .{ .maybe, .{ .attribute, "number" } },
+            .enums = .{ .elements, "require", .{ .elements, "enum", .{ .attribute, "name" } } },
+            .commands = .{ .elements, "require", .{ .elements, "command", .{ .attribute, "name" } } },
         };
 
         api: []const u8,
@@ -330,12 +347,12 @@ const GLSpec = struct {
     pub const RegistryFormatError = error{ BadFormat, UnknownVersion };
 
     pub const Registry = struct {
-        pub const XmlShape = .{
-            .comment = xml.singleElement("comment", xml.elementContent(.verbatim)),
-            .types = xml.singleElement("types", xml.manyElements("type", Type)),
-            .enums = xml.manyElements("enums", EnumSet),
-            .commands = xml.manyElements("commands", CommandSet),
-            .features = xml.manyElements("feature", FeatureSet),
+        pub const xml_shape = .{
+            .comment = .{ .element, "comment", .content_trimmed },
+            .types = .{ .element, "types", .{ .elements, "type", Type } },
+            .enums = .{ .elements, "enums", EnumSet },
+            .commands = .{ .elements, "commands", CommandSet },
+            .features = .{ .elements, "feature", FeatureSet },
         };
 
         comment: []const u8,
@@ -469,7 +486,9 @@ const GLSpec = struct {
         };
     };
 
-    pub const XmlShape = .{ .registry = xml.singleElement("registry", Registry) };
+    pub const xml_shape = .{
+        .registry = .{ .element, "registry", Registry },
+    };
 
     registry: Registry,
 
@@ -510,17 +529,14 @@ pub fn main() !void {
     }
 
     const us1 = std.time.microTimestamp();
-    var document = try xml.parseXmlFull(gpa.allocator(), @embedFile("gl.xml"));
-    defer document.deinit();
 
-    var arena = std.heap.ArenaAllocator.init(gpa.allocator());
-    const spec = try document.doc.createValue(GLSpec, arena.allocator());
-    defer arena.deinit();
+    const owned = try xml.Populate(GLSpec).initFromSlice(gpa.allocator(), @embedFile("gl.xml"));
+    defer owned.deinit();
 
     const outFile = try std.fs.cwd().createFile(outputPath, .{});
     defer outFile.close();
 
-    const formatter = GLSpec.Registry.Formatter{ .allocator = gpa.allocator(), .registry = spec.registry, .api = api, .version = version, .static = isWasm };
+    const formatter: GLSpec.Registry.Formatter = .{ .allocator = gpa.allocator(), .registry = owned.value.registry, .api = api, .version = version, .static = isWasm };
     try outFile.writer().print(
         \\//
         \\// Copyright {s} MIDLIGHT STUDIOS
