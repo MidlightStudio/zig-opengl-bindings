@@ -2,13 +2,13 @@
     .name = "zig-opengl-bindings",
     .version = "0.0.0",
     .dependencies = .{
-        .dishwasher = .{
-            .url = "https://github.com/edqx/dishwasher/archive/refs/tags/1.0.6.zip",
-            .hash = "12205b393762918a90452d6cc58f457a9d9136a9dd1fc63ba353753b9b19fdd9cd70",
-        },
         .@"OpenGL-Registry" = .{
             .url = "https://github.com/KhronosGroup/OpenGL-Registry/archive/5466009a38991f5ea5c2009105bd83f19fe49979.zip",
             .hash = "1220c3c44306989ea798da3441387891a399f960e32eeedbd535e34f838d1cc903ca",
+        },
+        .dishwasher = .{
+            .url = "git+https://github.com/edqx/dishwasher#baaa149bc02d1bcb71b65cc8b761477806fee555",
+            .hash = "12205ce145e8de80fffa3a732ea3e140499e67941021de398841a288292e384faa2d",
         },
     },
     .paths = .{
