@@ -5,10 +5,10 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     const dishwasher = b.dependency("dishwasher", .{});
-    const openglRegistry = b.dependency("OpenGL-Registry", .{});
+    const openglRegistry = b.dependency("opengl_registry", .{});
 
     const exe = b.addExecutable(.{
-        .name = "zig-opengl-bindings",
+        .name = "zig_opengl_bindings",
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
@@ -38,8 +38,8 @@ pub const BindingsOptions = struct {
 };
 
 pub fn addBindingsModule(b: *std.Build, options: BindingsOptions) *std.Build.Module {
-    var zigOpenGLBindings = b.dependency("zig-opengl-bindings", .{ .optimize = @as([]const u8, "ReleaseFast") });
-    const exe = zigOpenGLBindings.artifact("zig-opengl-bindings");
+    var zigOpenGLBindings = b.dependency("zig_opengl_bindings", .{ .optimize = @as([]const u8, "ReleaseFast") });
+    const exe = zigOpenGLBindings.artifact("zig_opengl_bindings");
 
     const buildGLBindingsCmd = b.addRunArtifact(exe);
 

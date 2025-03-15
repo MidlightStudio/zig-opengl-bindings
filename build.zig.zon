@@ -1,14 +1,15 @@
 .{
-    .name = "zig-opengl-bindings",
+    .name = .zig_opengl_bindings,
+    .fingerprint = 0xd11dbf1bf942a724,
     .version = "0.0.0",
     .dependencies = .{
-        .@"OpenGL-Registry" = .{
+        .opengl_registry = .{
             .url = "https://github.com/KhronosGroup/OpenGL-Registry/archive/5466009a38991f5ea5c2009105bd83f19fe49979.zip",
-            .hash = "1220c3c44306989ea798da3441387891a399f960e32eeedbd535e34f838d1cc903ca",
+            .hash = "N-V-__8AAA4v5QrDxEMGmJ6nmNo0QTh4kaOZ-WDjLu7b1TXj",
         },
         .dishwasher = .{
-            .url = "git+https://github.com/edqx/dishwasher#3a7bc1852c6121742d84eb64eae4819a891441d6",
-            .hash = "12204d2033d793d1394785b796cc04ebc9d50b79816c6771d8901717825d7187efc6",
+            .url = "git+https://github.com/edqx/dishwasher#1.0.7",
+            .hash = "dishwasher-2.0.0-aXVByeyCAQBuf9acPDoFACdxIfpbzkRdvcz_QNM6XZDU",
         },
     },
     .paths = .{
