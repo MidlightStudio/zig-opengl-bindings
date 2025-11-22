@@ -8,8 +8,8 @@
             .hash = "N-V-__8AAA4v5QrDxEMGmJ6nmNo0QTh4kaOZ-WDjLu7b1TXj",
         },
         .dishwasher = .{
-            .url = "git+https://github.com/edqx/dishwasher#1.0.7",
-            .hash = "dishwasher-2.0.0-aXVByeyCAQBuf9acPDoFACdxIfpbzkRdvcz_QNM6XZDU",
+            .url = "git+https://github.com/edqx/dishwasher#f25e60da10e9d374017f23e829b782496d4f0331",
+            .hash = "dishwasher-2.0.0-aXVBybymAQDzgein7twdj39GDRWJeTeG9tYAe11_G45p",
         },
     },
     .paths = .{

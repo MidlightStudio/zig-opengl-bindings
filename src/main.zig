@@ -61,58 +61,63 @@ const GLSpec = struct {
         \\pub const GLVULKANPROCNV = [*c]const fn () callconv(.C) void;
     ;
 
-    fn formatSymbolImpl(symbolName: []const u8, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-        if (std.mem.startsWith(u8, symbolName, "gl")) {
-            try writer.writeByte(symbolName[2] + ('a' - 'A'));
-            try writer.print("{}", .{formatSymbol(symbolName[3..])});
-            return;
-        }
-        if (std.mem.startsWith(u8, symbolName, "GL_")) {
-            try writer.print("{}", .{formatSymbol(symbolName[3..])});
-            return;
-        }
-        switch (symbolName[0]) {
-            '0'...'9' => {
-                try writer.print("@\"{s}\"", .{symbolName});
-            },
-            else => {
-                if (renameSymbols.get(symbolName)) |_| {
-                    try writer.print("@\"{s}\"", .{symbolName});
-                    return;
-                }
-                try writer.print("{s}", .{symbolName});
-            },
-        }
-    }
+    const SymbolFormatter = struct {
+        symbolName: []const u8,
 
-    pub fn formatSymbol(symbolName: []const u8) std.fmt.Formatter(formatSymbolImpl) {
-        return .{ .data = symbolName };
+        pub fn format(self: SymbolFormatter, writer: *std.Io.Writer) !void {
+            const symbolName = self.symbolName;
+            if (std.mem.startsWith(u8, symbolName, "gl")) {
+                try writer.writeByte(symbolName[2] + ('a' - 'A'));
+                try writer.print("{f}", .{formatSymbol(symbolName[3..])});
+                return;
+            }
+            if (std.mem.startsWith(u8, symbolName, "GL_")) {
+                try writer.print("{f}", .{formatSymbol(symbolName[3..])});
+                return;
+            }
+            switch (symbolName[0]) {
+                '0'...'9' => {
+                    try writer.print("@\"{s}\"", .{symbolName});
+                },
+                else => {
+                    if (renameSymbols.get(symbolName)) |_| {
+                        try writer.print("@\"{s}\"", .{symbolName});
+                        return;
+                    }
+                    try writer.print("{s}", .{symbolName});
+                },
+            }
+        }
+    };
+
+    pub fn formatSymbol(symbolName: []const u8) SymbolFormatter {
+        return .{ .symbolName = symbolName };
     }
 
     pub const TypeFormatter = struct {
         typeName: []const u8,
         renameVoid: bool = false,
 
-        pub fn format(self: TypeFormatter, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+        pub fn format(self: TypeFormatter, writer: *std.Io.Writer) !void {
             var trimmed = std.mem.trim(u8, self.typeName, &std.ascii.whitespace);
             if (std.mem.endsWith(u8, trimmed, "const*")) {
-                try writer.print("[*c]const {}", .{TypeFormatter{ .typeName = trimmed[0 .. trimmed.len - 6], .renameVoid = true }});
+                try writer.print("[*c]const {f}", .{TypeFormatter{ .typeName = trimmed[0 .. trimmed.len - 6], .renameVoid = true }});
                 return;
             }
             if (std.mem.endsWith(u8, trimmed, "*")) {
                 if (std.mem.startsWith(u8, trimmed, "const")) {
-                    try writer.print("[*c]const {}", .{TypeFormatter{ .typeName = trimmed[5 .. trimmed.len - 1], .renameVoid = true }});
+                    try writer.print("[*c]const {f}", .{TypeFormatter{ .typeName = trimmed[5 .. trimmed.len - 1], .renameVoid = true }});
                     return;
                 }
-                try writer.print("[*c]{}", .{TypeFormatter{ .typeName = trimmed[0 .. trimmed.len - 1], .renameVoid = true }});
+                try writer.print("[*c]{f}", .{TypeFormatter{ .typeName = trimmed[0 .. trimmed.len - 1], .renameVoid = true }});
                 return;
             }
             if (std.mem.startsWith(u8, trimmed, "struct ")) {
-                try writer.print("{}", .{TypeFormatter{ .typeName = trimmed[7..] }});
+                try writer.print("{f}", .{TypeFormatter{ .typeName = trimmed[7..] }});
                 return;
             }
             if (renameTypes.get(trimmed)) |renamed| {
-                try writer.print("{}", .{TypeFormatter{ .typeName = renamed }});
+                try writer.print("{f}", .{TypeFormatter{ .typeName = renamed }});
                 return;
             }
             if (self.renameVoid and std.mem.eql(u8, trimmed, "void")) {
@@ -173,8 +178,8 @@ const GLSpec = struct {
         maybeComment: ?[]const u8,
         maybeGroup: ?[]const u8,
 
-        pub fn format(self: Enum, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-            try writer.print("pub const {s} = {s};", .{ formatSymbol(self.name), self.value });
+        pub fn format(self: Enum, writer: *std.Io.Writer) !void {
+            try writer.print("pub const {f} = {s};", .{ formatSymbol(self.name), self.value });
         }
     };
 
@@ -236,32 +241,33 @@ const GLSpec = struct {
             allocator: std.mem.Allocator,
             parameter: Parameter,
 
-            pub fn format(self: Formatter, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-                try writer.print("{}: ", .{formatSymbol(self.parameter.name)});
-                var typeName = std.ArrayListUnmanaged(u8){};
-                defer typeName.deinit(self.allocator);
+            pub fn format(self: Formatter, writer: *std.Io.Writer) !void {
+                try writer.print("{f}: ", .{formatSymbol(self.parameter.name)});
 
-                const writer2 = typeName.writer(self.allocator);
+                var type_name: std.Io.Writer.Allocating = .init(self.allocator);
+                defer type_name.deinit();
 
                 for (0.., self.parameter.pType.children) |i, child| {
-                    if (i != 0) try writer2.print(" ", .{});
+                    if (i != 0) try type_name.writer.print(" ", .{});
                     switch (child) {
                         .text => |text_node| {
                             const trimmed = std.mem.trim(u8, text_node.contents, &std.ascii.whitespace);
-                            try writer2.print("{s}", .{trimmed});
+                            try type_name.writer.print("{s}", .{trimmed});
                         },
                         .elem => |elem_node| {
                             if (std.mem.eql(u8, elem_node.tag_name, "ptype")) {
-                                const text = try elem_node.tree.?.concatTextTrimmedAlloc(self.allocator);
+                                const text = elem_node.tree.?.concatTextTrimmedAlloc(self.allocator) catch |e| switch (e) {
+                                    error.OutOfMemory => return error.WriteFailed,
+                                };
                                 defer self.allocator.free(text);
 
-                                try writer2.print("{s}", .{text});
+                                try type_name.writer.print("{s}", .{text});
                             }
                         },
                         .comment => {},
                     }
                 }
-                try writer.print("{}", .{TypeFormatter{ .typeName = typeName.items }});
+                try writer.print("{f}", .{TypeFormatter{ .typeName = type_name.written() }});
             }
         };
     };
@@ -280,19 +286,19 @@ const GLSpec = struct {
             command: Command,
             static: bool,
 
-            pub fn format(self: Formatter, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+            pub fn format(self: Formatter, writer: *std.Io.Writer) !void {
                 if (self.static) {
-                    try writer.print("pub extern fn {}(", .{formatSymbol(self.command.prototype.name)});
+                    try writer.print("pub extern fn {f}(", .{formatSymbol(self.command.prototype.name)});
                 } else {
-                    try writer.print("pub var {}: *const fn(", .{formatSymbol(self.command.prototype.name)});
+                    try writer.print("pub var {f}: *const fn(", .{formatSymbol(self.command.prototype.name)});
                 }
                 for (0.., self.command.parameters) |i, param| {
                     if (i != 0) {
                         try writer.print(", ", .{});
                     }
-                    try writer.print("{}", .{Parameter.Formatter{ .allocator = self.allocator, .parameter = param }});
+                    try writer.print("{f}", .{Parameter.Formatter{ .allocator = self.allocator, .parameter = param }});
                 }
-                try writer.print(") callconv(.C) {}", .{TypeFormatter{ .typeName = switch (self.command.prototype.retType) {
+                try writer.print(") callconv(.c) {f}", .{TypeFormatter{ .typeName = switch (self.command.prototype.retType) {
                     inline else => |r| r,
                 } }});
                 if (self.static) {
@@ -317,7 +323,7 @@ const GLSpec = struct {
             allocator: std.mem.Allocator,
             commandSet: CommandSet,
 
-            pub fn format(self: Formatter, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+            pub fn format(self: Formatter, writer: *std.Io.Writer) !void {
                 for (0.., self.commandSet.commands) |i, command| {
                     if (i != 0) {
                         try writer.print("\n", .{});
@@ -368,7 +374,19 @@ const GLSpec = struct {
             version: []const u8,
             static: bool,
 
-            pub fn format(self: Formatter, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+            format_error: ?anyerror = null,
+
+            pub fn format(self: *Formatter, writer: *std.Io.Writer) error{WriteFailed}!void {
+                self.formatImpl(writer) catch |e| switch (e) {
+                    error.WriteFailed => return error.WriteFailed,
+                    else => |other_err| {
+                        self.format_error = other_err;
+                        return error.WriteFailed;
+                    },
+                };
+            }
+
+            fn formatImpl(self: Formatter, writer: *std.Io.Writer) !void {
                 const maximumFeature: FeatureSet = for (self.registry.features) |feature| {
                     if (std.mem.eql(u8, feature.api, self.api) and std.mem.eql(u8, feature.version, self.version))
                         break feature;
@@ -430,14 +448,14 @@ const GLSpec = struct {
 
                 while (enumIter.next()) |enumName| {
                     const @"enum" = enumQuickSet.get(enumName.*) orelse unreachable;
-                    try writer.print("{}\n", .{@"enum"});
+                    try writer.print("{f}\n", .{@"enum"});
                 }
 
                 try writer.print("\n", .{});
 
                 while (commandIter.next()) |commandName| {
                     const command = commandQuickSet.get(commandName.*) orelse unreachable;
-                    try writer.print("{}\n", .{Command.Formatter{ .allocator = self.allocator, .command = command, .static = self.static }});
+                    try writer.print("{f}\n", .{Command.Formatter{ .allocator = self.allocator, .command = command, .static = self.static }});
                 }
 
                 if (!self.static) {
@@ -445,14 +463,12 @@ const GLSpec = struct {
                     try writer.print(
                         \\const loadFn = (switch (@import("builtin").os.tag) {{
                         \\    .windows => struct {{
-                        \\        pub const WINAPI = @import("std").os.windows.WINAPI;
-                        \\
                         \\        pub extern "opengl32" fn wglGetProcAddress(
                         \\            param0: ?[*:0]const u8,
-                        \\        ) callconv(WINAPI) ?*const fn () callconv(WINAPI) isize;
+                        \\        ) callconv(.winapi) ?*const fn () callconv(.winapi) isize;
                         \\
-                        \\        pub extern "kernel32" fn GetModuleHandleA(moduleName: ?[*:0]const u8) callconv(WINAPI) ?*anyopaque;
-                        \\        pub extern "kernel32" fn GetProcAddress(handle: ?*anyopaque, moduleName: ?[*:0]const u8) callconv(WINAPI) ?*anyopaque;
+                        \\        pub extern "kernel32" fn GetModuleHandleA(moduleName: ?[*:0]const u8) callconv(.winapi) ?*anyopaque;
+                        \\        pub extern "kernel32" fn GetProcAddress(handle: ?*anyopaque, moduleName: ?[*:0]const u8) callconv(.winapi) ?*anyopaque;
                         \\
                         \\        pub fn load(procName: [*:0]const u8) ?*anyopaque {{
                         \\            if (wglGetProcAddress(@ptrCast(procName))) |ptr| {{
@@ -474,7 +490,7 @@ const GLSpec = struct {
                         try writer.print("\n", .{});
                         const command = commandQuickSet.get(commandName.*) orelse unreachable;
                         try writer.print(
-                            \\    {} = @ptrCast(loadFn("{s}") orelse @panic("Cannot find proc \"{s}\""));
+                            \\    {f} = @ptrCast(loadFn("{s}") orelse @panic("Cannot find proc \"{s}\""));
                         , .{ formatSymbol(command.prototype.name), command.prototype.name, command.prototype.name });
                     }
                     try writer.print("\n", .{});
@@ -492,8 +508,8 @@ const GLSpec = struct {
 
     registry: Registry,
 
-    pub fn format(self: GLSpec, comptime fmt: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-        try writer.print("{" ++ fmt ++ "}", .{self.registry});
+    pub fn format(self: GLSpec, writer: *std.Io.Writer) !void {
+        try writer.print("{f}", .{self.registry});
     }
 };
 
@@ -536,8 +552,11 @@ pub fn main() !void {
     const outFile = try std.fs.cwd().createFile(outputPath, .{});
     defer outFile.close();
 
-    const formatter: GLSpec.Registry.Formatter = .{ .allocator = gpa.allocator(), .registry = owned.value.registry, .api = api, .version = version, .static = isWasm };
-    try outFile.writer().print(
+    var write_buffer: [4096]u8 = undefined;
+    var writer = outFile.writer(&write_buffer);
+
+    var formatter: GLSpec.Registry.Formatter = .{ .allocator = gpa.allocator(), .registry = owned.value.registry, .api = api, .version = version, .static = isWasm };
+    writer.interface.print(
         \\//
         \\// Copyright {s} MIDLIGHT STUDIOS
         \\// Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -562,10 +581,18 @@ pub fn main() !void {
         \\//     Version: {s}
         \\//     Static: {}
         \\//
-    , .{ "2024", api, version, isWasm });
-    try outFile.writer().print("\n{}", .{formatter});
+        \\
+        \\{f}
+    , .{ "2024", api, version, isWasm, &formatter }) catch |e| switch (e) {
+        error.WriteFailed => {
+            if (formatter.format_error) |err| return err;
+            return e;
+        },
+        else => return e,
+    };
+    try writer.interface.flush();
     const us2 = std.time.microTimestamp();
     const ms: usize = @intCast(@divFloor(us2 - us1, 1000));
 
-    if (time) try std.io.getStdOut().writer().print("took {}ms", .{ms});
+    if (time) std.debug.print("took {}ms", .{ms});
 }

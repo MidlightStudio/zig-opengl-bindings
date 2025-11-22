@@ -7,11 +7,15 @@ pub fn build(b: *std.Build) void {
     const dishwasher = b.dependency("dishwasher", .{});
     const openglRegistry = b.dependency("opengl_registry", .{});
 
-    const exe = b.addExecutable(.{
-        .name = "zig_opengl_bindings",
+    const generator_module = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
+    });
+
+    const exe = b.addExecutable(.{
+        .name = "zig_opengl_bindings",
+        .root_module = generator_module,
     });
 
     exe.root_module.addImport("gl.xml", b.addModule("gl-xml", .{ .root_source_file = openglRegistry.path("xml/gl.xml") }));
