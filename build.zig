@@ -5,7 +5,7 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     const dishwasher = b.dependency("dishwasher", .{});
-    const openglRegistry = b.dependency("opengl_registry", .{});
+    const opengl_registry = b.dependency("opengl_registry", .{});
 
     const generator_module = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
@@ -13,12 +13,16 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    const opengl_xml = b.createModule(.{
+        .root_source_file = opengl_registry.path("xml/gl.xml"),
+    });
+
     const exe = b.addExecutable(.{
         .name = "zig_opengl_bindings",
         .root_module = generator_module,
     });
 
-    exe.root_module.addImport("gl.xml", b.addModule("gl-xml", .{ .root_source_file = openglRegistry.path("xml/gl.xml") }));
+    exe.root_module.addImport("gl.xml", opengl_xml);
     exe.root_module.addImport("dishwasher", dishwasher.module("dishwasher"));
 
     b.installArtifact(exe);
@@ -41,19 +45,18 @@ pub const BindingsOptions = struct {
     static: bool = false,
 };
 
-pub fn addBindingsModule(b: *std.Build, options: BindingsOptions) *std.Build.Module {
-    var zigOpenGLBindings = b.dependency("zig_opengl_bindings", .{ .optimize = @as([]const u8, "ReleaseFast") });
-    const exe = zigOpenGLBindings.artifact("zig_opengl_bindings");
+pub fn createBindingsModule(dependency: *std.Build.Dependency, options: BindingsOptions) *std.Build.Module {
+    const b = dependency.builder;
+    const generator = dependency.artifact("zig_opengl_bindings");
+    const generate_gl_bindings = b.addRunArtifact(generator);
 
-    const buildGLBindingsCmd = b.addRunArtifact(exe);
+    generate_gl_bindings.addArg(options.api);
+    generate_gl_bindings.addArg(options.version);
 
-    buildGLBindingsCmd.addArg(options.api);
-    buildGLBindingsCmd.addArg(options.version);
-
-    const outputPath = buildGLBindingsCmd.addOutputFileArg("gl.zig");
+    const outputPath = generate_gl_bindings.addOutputFileArg("gl.zig");
     if (options.static) {
-        buildGLBindingsCmd.addArg("--static");
+        generate_gl_bindings.addArg("--static");
     }
 
-    return b.addModule("opengl", .{ .root_source_file = outputPath });
+    return b.createModule(.{ .root_source_file = outputPath });
 }
