@@ -20,8 +20,8 @@ pub const renameTypes = std.StaticStringMap([]const u8).initComptime(.{
     .{ "GLclampf", "f32" },
     .{ "GLdouble", "f64" },
     .{ "GLclampd", "f64" },
-    .{ "GLchar", "i8" },
-    .{ "GLcharARB", "i8" },
+    .{ "GLchar", "u8" },
+    .{ "GLcharARB", "u8" },
     .{ "GLhalf", "u16" },
     .{ "GLhalfARB", "u16" },
     .{ "GLfixed", "i32" },
@@ -45,19 +45,19 @@ pub const renameSymbols = std.StaticStringMap(void).initComptime(.{.{ "packed", 
 
 const zigTypeDefs =
     \\pub const GLenum = u32;
-    \\pub const GLhandleARB = if (@import("builtin").os.tag == .macos) [*c]u0 else c_uint;
-    \\pub const GLeglClientBufferEXT = [*c]u0;
-    \\pub const GLeglImageOES = [*c]u0;
-    \\pub const GLsync = [*c]u0;
+    \\pub const GLhandleARB = if (@import("builtin").os.tag == .macos) ?*anyopaque else c_uint;
+    \\pub const GLeglClientBufferEXT = ?*anyopaque;
+    \\pub const GLeglImageOES = ?*anyopaque;
+    \\pub const GLsync = ?*anyopaque;
     \\pub const _cl_context = opaque {};
     \\pub const _cl_event = opaque {};
-    \\pub const GLDEBUGPROC = [*c]const fn (source: GLenum, _type: GLenum, id: u32, severity: GLenum, length: i32, message: [*:0]const u8, userParam: ?*anyopaque) callconv(.C) void;
-    \\pub const GLDEBUGPROCARB = [*c]const fn (source: GLenum, _type: GLenum, id: u32, severity: GLenum, length: i32, message: [*:0]const u8, userParam: ?*anyopaque) callconv(.C) void;
-    \\pub const GLDEBUGPROCKHR = [*c]const fn (source: GLenum, _type: GLenum, id: u32, severity: GLenum, length: i32, message: [*:0]const u8, userParam: ?*anyopaque) callconv(.C) void;
-    \\pub const GLDEBUGPROCAMD = [*c]const fn (id: u32, category: GLenum, severity: GLenum, length: i32, message: [*:0]const u8, userParam: ?*anyopaque) callconv(.C) void;
+    \\pub const GLDEBUGPROC = *const fn (source: GLenum, _type: GLenum, id: u32, severity: GLenum, length: i32, message: [*:0]const u8, userParam: ?*anyopaque) callconv(.c) void;
+    \\pub const GLDEBUGPROCARB = *const fn (source: GLenum, _type: GLenum, id: u32, severity: GLenum, length: i32, message: [*:0]const u8, userParam: ?*anyopaque) callconv(.c) void;
+    \\pub const GLDEBUGPROCKHR = *const fn (source: GLenum, _type: GLenum, id: u32, severity: GLenum, length: i32, message: [*:0]const u8, userParam: ?*anyopaque) callconv(.c) void;
+    \\pub const GLDEBUGPROCAMD = *const fn (id: u32, category: GLenum, severity: GLenum, length: i32, message: [*:0]const u8, userParam: ?*anyopaque) callconv(.c) void;
     \\pub const GLhalfNV = u16;
     \\pub const GLvdpauSurfaceNV = usize;
-    \\pub const GLVULKANPROCNV = [*c]const fn () callconv(.C) void;
+    \\pub const GLVULKANPROCNV = *const fn () callconv(.c) void;
 ;
 
 const SymbolFormatter = struct {
