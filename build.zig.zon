@@ -1,7 +1,7 @@
 .{
     .name = .zig_opengl_bindings,
     .fingerprint = 0xd11dbf1bf942a724,
-    .version = "0.1.1",
+    .version = "0.1.2",
     .dependencies = .{
         .opengl_registry = .{
             .url = "https://github.com/KhronosGroup/OpenGL-Registry/archive/5466009a38991f5ea5c2009105bd83f19fe49979.zip",
