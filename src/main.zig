@@ -17,11 +17,6 @@ pub fn main() !void {
 
     const allocator = if (use_debug_allocator) gpa.allocator() else std.heap.smp_allocator;
 
-    var threaded_io: std.Io.Threaded = .init_single_threaded;
-    defer threaded_io.deinit();
-
-    const io = threaded_io.io();
-
     var args = try std.process.argsWithAllocator(allocator);
     defer args.deinit();
 
@@ -49,7 +44,7 @@ pub fn main() !void {
         if (std.mem.eql(u8, arg, "--time")) time = true;
     }
 
-    const start = try std.Io.Clock.now(.awake, io);
+    const start = std.time.milliTimestamp();
 
     const owned = try xml.Populate(GLSpec).initFromSlice(allocator, @embedFile("gl.xml"));
     defer owned.deinit();
@@ -75,8 +70,8 @@ pub fn main() !void {
     };
     try writer.interface.flush();
 
-    const end = try std.Io.Clock.now(.awake, io);
-    const duration = start.durationTo(end);
+    const end = std.time.milliTimestamp();
+    const duration = end - start;
 
-    if (time) std.debug.print("took {}ms", .{duration.toMilliseconds()});
+    if (time) std.debug.print("took {}ms", .{duration});
 }

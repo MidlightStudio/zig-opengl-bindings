@@ -46,9 +46,11 @@ pub fn build(b: *std.Build) void {
 
     _ = b.addModule("gl", .{ .root_source_file = output_path });
 
+    const run_cmd = b.addRunArtifact(generator_exe);
+
     // run step
-    if (b.args) |args| generate_cmd.addArgs(args);
+    if (b.args) |args| run_cmd.addArgs(args);
 
     const run_step = b.step("run", "Run the app");
-    run_step.dependOn(&generate_cmd.step);
+    run_step.dependOn(&run_cmd.step);
 }
