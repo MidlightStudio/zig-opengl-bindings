@@ -1,6 +1,6 @@
 .{
-    .name = .zig_opengl_bindings,
-    .fingerprint = 0xd11dbf1bf942a724,
+    .name = .opengl_bindings,
+    .fingerprint = 0xd3119b7761b5c0a1,
     .version = "0.1.2",
     .dependencies = .{
         .opengl_registry = .{
